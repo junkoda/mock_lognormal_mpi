@@ -19,6 +19,7 @@ class InputPower {
   std::vector<double> log_k, log_P;
   gsl_interp* interp;
   gsl_interp_accel* acc;
+  double k_min, k_max;
 };
 
 #endif

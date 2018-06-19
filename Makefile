@@ -23,20 +23,23 @@ LIBS    := -lm
 
 FFTW3_DIR ?= #e.g. /Users/jkoda/Research/opt/gcc/fftw3
 GSL_DIR   ?= #e.g. /Users/jkoda/Research/opt/gcc/gsl
+BOOST_DIR ?=
+HDF5P_DIR ?=
 
-DIR_PATH   = $(FFTW3_DIR) $(GSL_DIR)
+DIR_PATH   = $(FFTW3_DIR) $(GSL_DIR) $(BOOST_DIR) $(HDF5P_DIR)
 
 CPPFLAGS  += $(foreach dir, $(DIR_PATH), -I$(dir)/include)
 LIBS      += $(foreach dir, $(DIR_PATH), -L$(dir)/lib)
 
-OBJS := main.o comm.o input_power.o msg.o grid.o lognormal.o #comm.o msg.o config.o fft.o mem.o particle.o util.o
-OBJS += #power.o cosmology.o lpt.o
+OBJS := main.o comm.o input_power.o msg.o grid.o lognormal.o
+OBJS += hdf5_write.o #power.o cosmology.o lpt.o
 
 #
 # Linking libraries
 #
-# LIBS += -llua -ldl 
-LIBS += -lgsl -lgslcblas
+# LIBS += -llua -ldl
+LIBS += -lboost_program_options
+LIBS += -lgsl -lgslcblas -lhdf5
 
 ifeq (,$(findstring -DDOUBLEPRECISION, $(OPT)))
   # Single precision FFTW

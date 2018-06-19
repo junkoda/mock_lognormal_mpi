@@ -72,6 +72,7 @@ void InputPower::bcast()
   }
   
   MPI_Bcast(log_k.data(), n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  MPI_Bcast(log_P.data(), n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 }
 
 void InputPower::init_interp()
@@ -86,12 +87,19 @@ void InputPower::init_interp()
 
   gsl_interp_init(interp, log_k.data(), log_P.data(), log_k.size());
 
-  //k_min= exp(log_k[0]);
-  //k_max= exp(log_k[nlines-1]);
+  k_min= exp(log_k[0]);
+  assert(log_k.size() >= 1);
+  k_max= exp(log_k[log_k.size()-1]);
 }
 
 double InputPower::P(const double k) const
 {
+  if(k < k_min || k > k_max) {
+    msg_abort("k is beyond the interpolation range: %e %e %e\n",
+	      k, k_min, k_max);
+  }
+  //printf("%e\n", k);
+  
   double log_Pk=
     gsl_interp_eval(interp, log_k.data(), log_P.data(), log(k), acc);
   
