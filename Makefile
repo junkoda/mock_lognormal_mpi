@@ -29,7 +29,7 @@ DIR_PATH   = $(FFTW3_DIR) $(GSL_DIR)
 CPPFLAGS  += $(foreach dir, $(DIR_PATH), -I$(dir)/include)
 LIBS      += $(foreach dir, $(DIR_PATH), -L$(dir)/lib)
 
-OBJS := main.o comm.o #comm.o msg.o config.o fft.o mem.o particle.o util.o
+OBJS := main.o comm.o input_power.o msg.o #comm.o msg.o config.o fft.o mem.o particle.o util.o
 OBJS += #power.o cosmology.o lpt.o
 
 #

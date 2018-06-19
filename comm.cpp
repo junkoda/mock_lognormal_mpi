@@ -24,7 +24,7 @@ int comm_this_node()
   return this_node;
 }
 
-int comm_nnode()
+int comm_n_nodes()
 {
   return n_node;
 }
