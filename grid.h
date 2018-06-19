@@ -18,13 +18,16 @@ class Grid {
   fftw_complex* fk;
   const int nc;
   const double boxsize;
+  int local_nx, local_x0;
+  
   FFTMode mode;
   double x0_box[3];
 
+  
  private:
   fftw_plan plan_forward;
   fftw_plan plan_inverse;
-  int local_nx, local_x0;
+
 };
 
 #endif
