@@ -1,3 +1,4 @@
+#include <iostream> // DEBUG
 #include <vector>
 #include <cmath>
 #include <cassert>
@@ -110,6 +111,8 @@ void lognormal_create_gaussian_delta_k(const unsigned long seed,
   // Input: grid as P(k)
   // Ouput: grid as delta(k)
 
+  assert(grid->mode == grid_mode_k);
+
   vector<unsigned int> seedtable;
   create_seedtable(seed, grid->nc, seedtable);
 
@@ -132,12 +135,14 @@ void lognormal_create_gaussian_delta_k(const unsigned long seed,
     if(iix == nc)
       iix= 0;
     
-    if(!((ix >= ix0 && ix < (ix0 + nx)) ||
-	 (iix >= ix0 && iix < (ix0 + nx))))
+    if(!((ix0 <= ix  && ix  < ix0 + nx) ||
+	 (ix0 <= iix && iix < ix0 + nx)))
       continue;
 
     for(int iy=0; iy<nc; ++iy) {
       int iiy = nc - iy;
+      if(iiy == nc) iiy = 0;
+      
       gsl_rng_set(rng, seedtable[ix * nc + iy]);
       
       for(int iz=0; iz<nc/2; ++iz) {
@@ -156,20 +161,21 @@ void lognormal_create_gaussian_delta_k(const unsigned long seed,
 	  continue;
 
 	size_t index;
-	if(ix >= ix0 && ix < (ix0 + nx)) {
+	if(ix0 <= ix && ix < ix0 + nx) {
 	  assert(ix >= ix0);
 	  index= ((ix - ix0)*nc + iy)*nckz + iz;
 	}
-	else if(iix >= ix0 && iix < (ix0 + nx)) {
+	else if(ix0 <= iix && iix < ix0 + nx) {
 	  assert(iix - ix0);
 	  index= ((iix - ix0)*nc + iy)*nckz + iz;
 	}
 	else {
 	  assert(false);
 	}
-	  
+
+
 	double delta2= vol*fk[index][0];
-	  
+
 	double delta_k_mag= 0.0;
 	if(fk[index][0] < P_min)
 	  P_min= fk[index][0];
@@ -180,41 +186,42 @@ void lognormal_create_gaussian_delta_k(const unsigned long seed,
 	  negative++;
 	
 	if(iz > 0) {
-	  if(ix0 <= ix && ix < (ix0 + nx)) {
+	  if(ix0 <= ix && ix < ix0 + nx) {
 	    assert(ix >= ix0);
 	    fk[((ix - ix0)*nc + iy)*nckz + iz][0]= delta_k_mag*cos(phase);
 	    fk[((ix - ix0)*nc + iy)*nckz + iz][1]= delta_k_mag*sin(phase);
 	  }
 	}
-	else { // iz=0 plane: assign also delta(-k) = delta(k)^* [reality condition]
+	else {
+	  // iz=0 plane: assign also delta(-k) = delta(k)^* [reality condition]
 	  if(ix == 0) {
 	    if(iy >= nc/2) {
 	      continue;
 	    }
 	    else {
-	      if(ix >= ix0 && ix < (ix + nx)) {
+	      if(ix0 <= ix && ix < ix0 + nx) {
 		assert(ix >= ix0);
 		
-		fk[((ix - ix0)*nc + iy)*nckz + iz][0] = delta_k_mag*cos(phase);
-		fk[((ix - ix0)*nc + iy)*nckz + iz][1] = delta_k_mag*sin(phase);
+		fk[((ix - ix0)*nc + iy)*nckz + iz][0]= delta_k_mag*cos(phase);
+		fk[((ix - ix0)*nc + iy)*nckz + iz][1]= delta_k_mag*sin(phase);
 		
-		fk[((ix - ix0)*nc + iiy)*nckz + iz][0] = delta_k_mag*cos(phase);
-		fk[((ix - ix0)*nc + iiy)*nckz + iz][1] = -delta_k_mag*sin(phase);
-	      }
+		fk[((ix - ix0)*nc + iiy)*nckz + iz][0]= delta_k_mag*cos(phase);
+		fk[((ix - ix0)*nc + iiy)*nckz + iz][1]= -delta_k_mag*sin(phase);	      }
 	    }
 	  }
 	  else {
 	    if(ix >= nc/2)
 	      continue;
 	    else {
-	      if(ix >= ix0 && ix < (ix0 + nx)) {
-		fk[((ix - ix0)*nc + iy)*nckz + iz][0] = delta_k_mag*cos(phase);
-		fk[((ix - ix0)*nc + iy)*nckz + iz][1] = delta_k_mag*sin(phase);
+
+	      if(ix0 <= ix && ix < ix0 + nx) {
+		fk[((ix - ix0)*nc + iy)*nckz + iz][0]= delta_k_mag*cos(phase);
+		fk[((ix - ix0)*nc + iy)*nckz + iz][1]= delta_k_mag*sin(phase);
 	      }
-	      
-	      if(iix >= ix0 && iix < (ix0 + nx)) {
-		fk[((iix - ix0)*nc + iiy)*nckz + iz][0] = delta_k_mag*cos(phase);
-		fk[((iix - ix0)*nc + iiy)*nckz + iz][1] = -delta_k_mag*sin(phase);
+
+	      if(ix0 <= iix && iix < ix0 + nx) {
+		fk[((iix - ix0)*nc + iiy)*nckz + iz][0]= delta_k_mag*cos(phase);
+		fk[((iix - ix0)*nc + iiy)*nckz + iz][1]= -delta_k_mag*sin(phase);
 	      }
 	    }
 	  }
@@ -226,12 +233,7 @@ void lognormal_create_gaussian_delta_k(const unsigned long seed,
   gsl_rng_free(rng);
 
   //fprintf(stderr, "P_min= %e\n", P_min);
-  //fprintf(stderr, "negative P(k): %zu\n", negative);
-
-
-  fk[0][0]= fk[0][1]= 0.0;
-
-  
+  //fprintf(stderr, "negative P(k): %zu\n", negative);  
 }
 
 namespace {
@@ -278,6 +280,8 @@ void create_seedtable(const unsigned long seed, const int nc,
       seedtable[(nc - 1 - j) * nc + (nc - 1 - i)] = 
 	0x7fffffff * gsl_rng_uniform(random_generator);
   }
+  
+  gsl_rng_free(random_generator);
 }
 
 } // End of unnamed namespace
