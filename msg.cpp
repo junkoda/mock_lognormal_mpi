@@ -19,7 +19,7 @@ void msg_printf(const enum LogLevel msg_level, const char *fmt, ...)
   }
 }
 
-void msg_abort(const int errret, const char *fmt, ...)
+void msg_abort(const char *fmt, ...)
 {
   va_list argp;
 
@@ -27,6 +27,6 @@ void msg_abort(const int errret, const char *fmt, ...)
   vfprintf(stderr, fmt, argp);
   va_end(argp);
 
-  MPI_Abort(MPI_COMM_WORLD, errret);
+  MPI_Abort(MPI_COMM_WORLD, -1);
 }  
 

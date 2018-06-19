@@ -26,7 +26,7 @@ template <class T> MPI_Datatype comm_data_type(T x)
   return MPI_BYTE;
 }
 
-template <class T> T comm_bcast(T x)
+template <class T> T comm_bcast(T& x)
 {
   MPI_Datatype data_type= comm_data_type(x);
   

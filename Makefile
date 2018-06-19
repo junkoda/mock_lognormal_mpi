@@ -53,7 +53,7 @@ endif
 # 
 #
 mock_lognormal_mpi: $(OBJS)
-	$(CXX) $(OBJS) -o $@
+	$(CXX) $(OBJS) $(LIBS) -o $@
 
 # Dependences
 $(OBJS): Makefile
