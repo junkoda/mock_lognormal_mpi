@@ -1,18 +1,18 @@
 #include <cstdio>
-#include <mpi.h>
+#include "comm.h"
 
 int main(int argc, char* argv[])
 {
-  MPI_Init(&argc, &argv);
+  comm_init(&argc, &argv);
 
-  int myrank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
+  //int myrank;
+  //MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
 
-  if(myrank == 0) {
-    printf("Hello World!\n");
-  }
-  
-  MPI_Finalize();
+  //if(myrank == 0) {
+  //  printf("Hello World!\n");
+  //}
+
+  comm_finalise();
   
   return 0;
 }
