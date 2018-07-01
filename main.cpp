@@ -39,6 +39,8 @@ int main(int argc, char* argv[])
        "write 3D grid of input power spectrum")
     ("write-delta-k", value<string>(), "write 3D grid of delta(k)")
     ("write-lognormal-density", value<string>(), "write 3D grid of lognormal n(x)")
+    ("write-mock-particles", value<string>(),
+     "write mock particle position and velocity")
     ("write-mock-density", value<string>(), "write 3D grid of mock n(x)")
     ;
 
@@ -95,7 +97,6 @@ int main(int argc, char* argv[])
   //
   msg_printf(msg_debug, "FFT to gaussian density n_gaussian(x)\n");
 
-  //DEBUG!!!
   grid->fft_inverse();
   
   lognormal_convert_to_lognormal_density(grid);
@@ -113,16 +114,15 @@ int main(int argc, char* argv[])
   //
   // Generate uniform mock
   //
-  /*
   msg_printf(msg_debug, "generating mock particles\n");
   
-  gsl_rng* rng= gsl_rng_alloc(gsl_rng_ranlxd1);
-  gsl_rng_set(rng, 40001 + seed + 105*comm_this_node());
+  //gsl_rng* rng= gsl_rng_alloc(gsl_rng_ranlxd1);
+  //gsl_rng_set(rng, 40001 + seed + 105*comm_this_node());
     
   const double nbar= vm["nbar-uniform"].as<double>();
 
   Particles particles;
-  lognormal_generate_particles_periodic(nbar, rng, grid,
+  lognormal_generate_particles_periodic(nbar, seed, grid,
 					0, 0, 0, particles);
 
   cerr << "comm_sum\n";
@@ -132,6 +132,13 @@ int main(int argc, char* argv[])
   msg_printf(msg_info, "%lld particles generated in the periodic box\n",
 	     np_mock);
 
+  if(vm.count("write-mock-particles")) {
+    hdf5_write_grid_particles(vm["write-mock-particles"].as<string>().c_str(),
+			      particles);
+  }
+
+
+  /*
   //
   // Compute box power spectrum
   //
@@ -148,7 +155,6 @@ int main(int argc, char* argv[])
 			 grid_ps);
   }
   */  
-  
 
 
   

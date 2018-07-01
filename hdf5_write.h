@@ -7,4 +7,7 @@ void hdf5_write_grid_real(const char filename[],
 void hdf5_write_grid_complex(const char filename[],
 			     Grid const * const grid);
 
+void hdf5_write_grid_particles(const char filename[],
+			       const Particles& particles);
+
 #endif

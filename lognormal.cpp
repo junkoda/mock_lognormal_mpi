@@ -3,7 +3,7 @@
 #include <cmath>
 #include <cassert>
 
-//#include <gsl/gsl_rng.h>
+#include <gsl/gsl_rng.h>
 #include <gsl/gsl_randist.h>
 
 #include "comm.h" // DEBUG
@@ -312,7 +312,7 @@ void lognormal_convert_to_lognormal_density(Grid* const grid)
 
 
 void lognormal_generate_particles_periodic(const double nbar,
-					   gsl_rng* rng,
+					   const unsigned long seed,
 					   Grid const * const grid_n,
 					   Grid const * const grid_vx,
 					   Grid const * const grid_vy,
@@ -344,23 +344,31 @@ void lognormal_generate_particles_periodic(const double nbar,
   const double dx= boxsize/nc;
   const double num_bar= nbar*dx*dx*dx;
 
+  // Create seedtable to have same random realisation independent of
+  // the number of MPI nodes
+  gsl_rng* rng = gsl_rng_alloc(gsl_rng_ranlxd1);
+  
+  vector<unsigned long> seedtable_x;
+  gsl_rng_set(rng, 40001 + seed);
+  seedtable_x.resize(nc, 0);
+  
+  for(int i=0; i<nc; ++i) {
+    seedtable_x[i]= 0x7fffffff * gsl_rng_uniform(rng);
+  }
+
   Particle p;
   p.v[0]= p.v[1]= p.v[2]= 0.0;
   //size_t np_added= 0;
 
-  cerr << "start loop.\n";
-  
   for(size_t ix_local=0; ix_local<nx; ++ix_local) {
     size_t ix= grid_n->local_x0 + ix_local;
+    gsl_rng_set(rng, seedtable_x[ix]);
     for(size_t iy=0; iy<nc; ++iy) {
       for(size_t iz=0; iz<nc; ++iz) {
-	size_t index= (ix_local*nx + iy)*ncz + iz;
+	size_t index= (ix_local*nc + iy)*ncz + iz;
 
 	// mean number of particles in the cell
 	double num_grid= n[index]*num_bar;
-	cerr << comm_this_node() << " " << num_grid << endl;
-	//num_total_mean += num_grid;
-	//np_added++;
 
 	// velocity
 	if(grid_vx) {
@@ -383,6 +391,7 @@ void lognormal_generate_particles_periodic(const double nbar,
     }
   }
 
+  gsl_rng_free(rng);
   cerr << "done.\n";
   //msg_printf(msg_debug, "%llu particles generated\n", np_added);
 }
