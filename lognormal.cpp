@@ -43,6 +43,7 @@ Grid* lognormal_create_grid(InputPower const * const ps,
   //
   // Create a grid of random lognormal field delta(x)
   //
+  // TODO: Implement bias as redshift
   Grid* const grid= lognormal_create_power_grid(ps, nc, boxsize, 1.0);
 
   return grid;
@@ -245,6 +246,7 @@ void lognormal_compute_velogicy_grid(Grid const * const grid,
 				     const double omega_m,
 				     Grid* const grid_v)
 {
+  // CHECK bias !=0 case
   assert(grid->mode == grid_mode_k);
   assert(0 <= axis && axis < 3);
   grid_v->mode= grid_mode_k;

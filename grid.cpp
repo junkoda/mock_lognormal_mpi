@@ -3,7 +3,7 @@
 #include <cassert>
 
 Grid::Grid(const int nc_, const double boxsize_) :
-  nc(nc_), boxsize(boxsize_)
+  nc(nc_), ncz(nc_/2 + 1), boxsize(boxsize_)
 {
   //size_t ncz= 2*(nc/2 + 1);
 
