@@ -49,7 +49,10 @@ int main(int argc, char* argv[])
   const string filename = vm["filename"].as<string>();
   const int nc= vm["nc"].as<int>(); assert(nc > 0);
   const double boxsize= vm["boxsize"].as<double>(); assert(boxsize > 0.0);
-  
+
+  //
+  // Create 3D grid P(k)
+  //
   InputPower* const ps= new InputPower(filename.c_str());
 
   Grid* const grid= lognormal_create_power_grid(ps, nc, boxsize, 1.0);
@@ -60,6 +63,13 @@ int main(int argc, char* argv[])
 			    grid);
   }
 
+  //
+  // TODO: convert to P_guassian(k)
+  //
+
+  //
+  // Convert P_gaussian(k) to random realisation delta_k(k)
+  //
   const unsigned long seed= vm["seed"].as<unsigned long>();
   lognormal_create_gaussian_delta_k(seed, grid);
 
@@ -68,6 +78,9 @@ int main(int argc, char* argv[])
     hdf5_write_grid_complex(vm["write-delta-k"].as<string>().c_str(),
 			    grid);
   }
+
+
+  
 
   comm_finalise();
   

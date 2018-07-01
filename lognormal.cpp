@@ -13,7 +13,22 @@ using namespace std;
 namespace {
   void create_seedtable(const unsigned long seed, const int nc,
 			vector<unsigned int>& seedtable);
+
 } // unnamed namespace
+
+// inline function
+static inline void get_random_phase(gsl_rng* rng,
+				    double* ampl_out, double* phase_out) {
+  // Generate random amplitude and phase of random Gaussian field
+  double ampl;
+  do
+    ampl= gsl_rng_uniform(rng);
+  while(ampl == 0.0);
+	
+  *ampl_out= -log(ampl);
+  *phase_out= gsl_rng_uniform(rng)*2.0*M_PI;
+}
+
 
 void lognormal_compute_gaussian_power(Grid* const grid);
 
@@ -66,9 +81,31 @@ Grid* lognormal_create_power_grid(InputPower const * const ps,
 
 	fk[index][0]= P;
 	fk[index][1]= 0.0;
+
+	assert(P > 0.0);
       }
     }
   }
+
+  // DEBUG!!!
+  int ix0 = grid->local_x0;
+  for(size_t ix_local=0; ix_local<nx; ++ix_local) {
+    size_t ix= ix_local + ix0;
+    for(size_t iy=0; iy<nc; ++iy) {
+      for(size_t iz=0; iz<nc/2; ++iz) {
+	size_t index= (ix_local*nc + iy)*nckz + iz;
+	if(ix == 0 && iy == 0 && iz == 0)
+	  continue;
+	else if(ix == nc/2) continue;
+	else if(iy == nc/2) continue;
+
+	if(fk[index][0] == 0.0) {
+	  cerr << "debug PK " << comm_this_node() << " | " << ix << " " << iy << " " << iz << " : " << fk[index][0] << endl;
+	}
+      }
+    }
+  }
+
   
   grid->mode= grid_mode_k;
   
@@ -89,10 +126,10 @@ void lognormal_compute_gaussian_power(Grid* const grid)
   const size_t nx= grid->local_nx;
   double* const xi= grid->fx;
   
-  for(size_t ix=0; ix<nx; ++ix) {
+  for(size_t ix_local=0; ix_local<nx; ++ix_local) {
     for(size_t iy=0; iy<nc; ++iy) {
       for(size_t iz=0; iz<nc; ++iz) {
-	size_t index= (ix*nc + iy)*ncz + iz;
+	size_t index= (ix_local*nc + iy)*ncz + iz;
 	assert(1.0 + xi[index] > 0.0);
 	xi[index]= log(1.0 + xi[index]);
       }
@@ -103,10 +140,11 @@ void lognormal_compute_gaussian_power(Grid* const grid)
   grid->fft_forward();
 }
 
+
 void lognormal_create_gaussian_delta_k(const unsigned long seed,
 				       Grid* const grid)
 {
-  // Create random Gaussian realisation of P(k)
+  // Convert the grid of P(k) to a random Gaussian realisation delta(k)
   
   // Input: grid as P(k)
   //        seed: random seed
@@ -125,118 +163,113 @@ void lognormal_create_gaussian_delta_k(const unsigned long seed,
   const double boxsize= grid->boxsize;
   const double vol= boxsize*boxsize*boxsize;
   fftw_complex* const fk= (fftw_complex*) grid->fx;
-  
-  // P(k) = 1/V <delta(k) delta^*(k)
-  gsl_rng* rng= gsl_rng_alloc(gsl_rng_ranlxd1);
 
-  size_t negative= 0;
-  double P_min= 0.0;
-
-  for(int ix=0; ix<nc; ++ix) {
-    int iix= nc - ix;
-    if(iix == nc) iix= 0;
-    
-    if(!((ix0 <= ix  && ix  < ix0 + nx) ||
-	 (ix0 <= iix && iix < ix0 + nx)))
-      continue;
-
-    for(int iy=0; iy<nc; ++iy) {
-      int iiy = nc - iy;
-      if(iiy == nc) iiy = 0;
-      
-      gsl_rng_set(rng, seedtable[ix * nc + iy]);
-      
-      for(int iz=0; iz<nc/2; ++iz) {
-	double ampl= 1.0;
-	do
-	  ampl= gsl_rng_uniform(rng);
-	while(ampl == 0.0);
-	
-	ampl= -log(ampl);
-	  
-	double phase= gsl_rng_uniform(rng)*2.0*M_PI;
-	
-	if(ix == nc/2 || iy == nc/2 || iz == nc/ 2)
-	  continue;
+  // DEBUG!!!
+  for(size_t ix_local=0; ix_local<nx; ++ix_local) {
+    size_t ix= ix_local + ix0;
+    for(size_t iy=0; iy<nc; ++iy) {
+      for(size_t iz=0; iz<nc/2; ++iz) {
+	size_t index= (ix_local*nc + iy)*nckz + iz;
 	if(ix == 0 && iy == 0 && iz == 0)
 	  continue;
+	else if(ix == nc/2) continue;
+	else if(iy == nc/2) continue;
 
-	size_t index;
-	if(ix0 <= ix && ix < ix0 + nx) {
-	  assert(ix >= ix0);
-	  index= ((ix - ix0)*nc + iy)*nckz + iz;
-	}
-	else if(ix0 <= iix && iix < ix0 + nx) {
-	  assert(iix - ix0);
-	  index= ((iix - ix0)*nc + iy)*nckz + iz;
-	}
-	else {
-	  assert(false);
-	}
 
-	//DEBUG
-	/*
-	if(comm_this_node() == 1)
-	  cerr << fk[index][0] << endl;
-	*/
-
-	double delta2= vol*fk[index][0];
-
-	double delta_k_mag= 0.0;
-	if(fk[index][0] < P_min)
-	  P_min= fk[index][0];
-	
-	if(fk[index][0] > 0.0)
-	  delta_k_mag= sqrt(ampl*delta2);
-	else
-	  negative++;
-	
-	if(iz > 0) {
-	  if(ix0 <= ix && ix < ix0 + nx) {
-	    fk[((ix - ix0)*nc + iy)*nckz + iz][0]= delta_k_mag*cos(phase);
-	    fk[((ix - ix0)*nc + iy)*nckz + iz][1]= delta_k_mag*sin(phase);
-	  }
-	}
-	else {
-	  // iz=0 plane: assign also delta(-k) = delta(k)^* [reality condition]
-	  if(ix == 0) {
-	    if(iy >= nc/2) {
-	      continue;
-	    }
-	    else {
-	      if(ix0 <= ix && ix < ix0 + nx) {
-		assert(ix >= ix0);
-		
-		fk[((ix - ix0)*nc + iy)*nckz + iz][0]= delta_k_mag*cos(phase);
-		fk[((ix - ix0)*nc + iy)*nckz + iz][1]= delta_k_mag*sin(phase);
-		
-		fk[((ix - ix0)*nc + iiy)*nckz + iz][0]= delta_k_mag*cos(phase);
-		fk[((ix - ix0)*nc + iiy)*nckz + iz][1]= -delta_k_mag*sin(phase);	      }
-	    }
-	  }
-	  else {
-	    if(ix >= nc/2)
-	      continue;
-	    else {
-	      if(comm_this_node() == 1)
-		cerr << "hello " << delta_k_mag*cos(phase) << endl;
-
-	      if(ix0 <= ix && ix < ix0 + nx) {
-		fk[((ix - ix0)*nc + iy)*nckz + iz][0]= delta_k_mag*cos(phase);
-		fk[((ix - ix0)*nc + iy)*nckz + iz][1]= delta_k_mag*sin(phase);
-	      }
-
-	      if(ix0 <= iix && iix < ix0 + nx) {
-		fk[((iix - ix0)*nc + iiy)*nckz + iz][0]= delta_k_mag*cos(phase);
-		fk[((iix - ix0)*nc + iiy)*nckz + iz][1]= -delta_k_mag*sin(phase);
-	      }
-	    }
-	  }
+	if(fk[index][0] <= 0.0) {
+	  cerr << "delta_k_mag check " <<  ix << " " << iy << " " << iz << " : " << fk[index][0] << endl;
+	  abort();
 	}
       }
     }
   }
 
+  // P(k) = 1/V <delta(k) delta^*(k)
+  gsl_rng* rng= gsl_rng_alloc(gsl_rng_ranlxd1);
+
+  size_t negative= 0;
+
+  //
+  // iz > 0
+  //   all modes are independent
+  for(int ix_local=0; ix_local<nx; ++ix_local) {
+    int ix= ix0 + ix_local;
+    if(ix == nc/2) continue;
+    for(int iy=0; iy<nc; ++iy) {
+      if(iy == nc/2) continue;
+      
+      gsl_rng_set(rng, seedtable[ix*nc + iy]);
+
+      double ampl, phase;
+      get_random_phase(rng, &ampl, &phase); // random phase for iz=0
+      
+      for(int iz=1; iz<nc/2; ++iz) {
+	get_random_phase(rng, &ampl, &phase);
+
+	size_t index= (ix_local*nc + iy)*nckz + iz;
+	double delta2= vol*fk[index][0];
+
+	double delta_k_mag= 0.0;
+	if(delta2 > 0.0)
+	  delta_k_mag= sqrt(ampl*delta2);
+	else
+	  negative++;
+
+	fk[index][0]= delta_k_mag*cos(phase);
+	fk[index][1]= delta_k_mag*sin(phase);
+      }
+    }
+  }
+
+  //
+  // iz = 0
+  //   Half of the modes are independent
+  //   reality condition delta(-k) = delta(k)^* needs to be satisfied
+
+  for(int ix=0; ix<nc/2; ++ix) {
+    int ix_local= ix - ix0;
+    int iix= nc - ix;
+    int iix_local= iix - ix0;
+    
+    for(int iy=0; iy<nc; ++iy) {
+      if(iy == nc/2) continue;
+      else if(ix == 0 && iy > nc/2) continue;
+      else if(ix == 0 && iy == 0) continue;
+
+      // all modes here are independent
+
+      gsl_rng_set(rng, seedtable[ix*nc + iy]);
+
+      double ampl, phase;
+      get_random_phase(rng, &ampl, &phase);
+
+      if(0 <= ix_local && ix_local < nx) {
+	size_t index= (ix_local*nc + iy)*nckz; // iz=0
+	double delta2= vol*fk[index][0];
+	double delta_k_mag= 0.0;
+	if(delta2 > 0.0)
+	  delta_k_mag= sqrt(ampl*delta2);
+	else
+	  negative++;
+
+	fk[index][0]= delta_k_mag*cos(phase);
+	fk[index][1]= delta_k_mag*sin(phase);
+      }
+      
+      if(0 <= iix_local && iix_local < nx) {
+	size_t iindex= (iix_local*nc + iy)*nckz; // iz=0
+	double delta2= vol*fk[iindex][0];
+	double delta_k_mag= 0.0;
+	if(delta2 > 0.0)
+	  delta_k_mag= sqrt(ampl*delta2);
+
+	// delta(-k) = delta(k)^*
+	fk[iindex][0]= delta_k_mag*cos(phase);
+	fk[iindex][1]= -delta_k_mag*sin(phase);
+      }
+    }
+  }
+  
   gsl_rng_free(rng);
 
   //fprintf(stderr, "P_min= %e\n", P_min);
@@ -290,5 +323,6 @@ void create_seedtable(const unsigned long seed, const int nc,
   
   gsl_rng_free(random_generator);
 }
+
 
 } // End of unnamed namespace
