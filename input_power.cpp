@@ -98,7 +98,6 @@ double InputPower::P(const double k) const
     msg_abort("k is beyond the interpolation range: %e %e %e\n",
 	      k, k_min, k_max);
   }
-  //printf("%e\n", k);
   
   double log_Pk=
     gsl_interp_eval(interp, log_k.data(), log_P.data(), log(k), acc);

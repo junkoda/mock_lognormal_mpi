@@ -30,7 +30,7 @@ int main(int argc, char* argv[])
     ("seed", value<unsigned long>()->default_value(1), "random seed")
     ("write-pk-input", value<string>(),
        "write 3D grid of input power spectrum")
-    ("write-delta-k", value<string>()->default_value("p3d.h5"),
+    ("write-delta-k", value<string>(),
        "write 3D grid of delta(k)")
     ;
 
@@ -65,7 +65,8 @@ int main(int argc, char* argv[])
 
   
   if(vm.count("write-delta-k")) {
-    ;
+    hdf5_write_grid_complex(vm["write-delta-k"].as<string>().c_str(),
+			    grid);
   }
 
   comm_finalise();

@@ -66,8 +66,6 @@ Grid* lognormal_create_power_grid(InputPower const * const ps,
 
 	fk[index][0]= P;
 	fk[index][1]= 0.0;
-
-	if(comm_this_node() == 1) printf("%e %e\n", k, P);
       }
     }
   }
@@ -108,7 +106,11 @@ void lognormal_compute_gaussian_power(Grid* const grid)
 void lognormal_create_gaussian_delta_k(const unsigned long seed,
 				       Grid* const grid)
 {
+  // Create random Gaussian realisation of P(k)
+  
   // Input: grid as P(k)
+  //        seed: random seed
+  //
   // Ouput: grid as delta(k)
 
   assert(grid->mode == grid_mode_k);
@@ -132,8 +134,7 @@ void lognormal_create_gaussian_delta_k(const unsigned long seed,
 
   for(int ix=0; ix<nc; ++ix) {
     int iix= nc - ix;
-    if(iix == nc)
-      iix= 0;
+    if(iix == nc) iix= 0;
     
     if(!((ix0 <= ix  && ix  < ix0 + nx) ||
 	 (ix0 <= iix && iix < ix0 + nx)))
@@ -173,6 +174,11 @@ void lognormal_create_gaussian_delta_k(const unsigned long seed,
 	  assert(false);
 	}
 
+	//DEBUG
+	/*
+	if(comm_this_node() == 1)
+	  cerr << fk[index][0] << endl;
+	*/
 
 	double delta2= vol*fk[index][0];
 
@@ -187,7 +193,6 @@ void lognormal_create_gaussian_delta_k(const unsigned long seed,
 	
 	if(iz > 0) {
 	  if(ix0 <= ix && ix < ix0 + nx) {
-	    assert(ix >= ix0);
 	    fk[((ix - ix0)*nc + iy)*nckz + iz][0]= delta_k_mag*cos(phase);
 	    fk[((ix - ix0)*nc + iy)*nckz + iz][1]= delta_k_mag*sin(phase);
 	  }
@@ -213,6 +218,8 @@ void lognormal_create_gaussian_delta_k(const unsigned long seed,
 	    if(ix >= nc/2)
 	      continue;
 	    else {
+	      if(comm_this_node() == 1)
+		cerr << "hello " << delta_k_mag*cos(phase) << endl;
 
 	      if(ix0 <= ix && ix < ix0 + nx) {
 		fk[((ix - ix0)*nc + iy)*nckz + iz][0]= delta_k_mag*cos(phase);

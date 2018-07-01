@@ -43,12 +43,11 @@ void Grid::clear()
   const size_t nx= local_nx;
   const size_t n= nc;
   const size_t ncz= 2*(nc/2 + 1);
-
   
   for(size_t ix=0; ix<nx; ++ix) {
     for(size_t iy=0; iy<n; ++iy) {
       for(size_t iz=0; iz<ncz; ++iz) {
-	size_t index= (ix*nc + iy)*ncz + iz;
+	size_t index= (ix*n + iy)*ncz + iz;
 	fx[index]= 0.0;
       }
     }
