@@ -3,11 +3,12 @@
 #include <cmath>
 #include <cassert>
 
-#include <gsl/gsl_rng.h>
+//#include <gsl/gsl_rng.h>
 #include <gsl/gsl_randist.h>
 
 #include "comm.h" // DEBUG
 #include "msg.h"
+#include "growth.h"
 #include "lognormal.h"
 
 using namespace std;
@@ -238,6 +239,54 @@ void lognormal_create_gaussian_delta_k(const unsigned long seed,
   //fprintf(stderr, "negative P(k): %zu\n", negative);  
 }
 
+void lognormal_compute_velogicy_grid(Grid const * const grid,
+				     const int axis,
+				     const double redshift,
+				     const double omega_m,
+				     Grid* const grid_v)
+{
+  assert(grid->mode == grid_mode_k);
+  assert(0 <= axis && axis < 3);
+  grid_v->mode= grid_mode_k;
+  
+
+  const int nc= grid->nc;
+  const int nx= grid->local_nx;
+  const int ix0= grid->local_x0;
+  const double boxsize= grid->boxsize;
+  
+  const int nckz= nc/2 + 1;
+  const double f= growth_f(1.0/(1.0 + redshift), omega_m);
+  const double fac= f*boxsize/(2.0*M_PI);
+
+  fftw_complex const * const d= grid->fk;
+  fftw_complex * const v= grid_v->fk;
+
+
+  double ik[3];
+  
+  for(int ix_local=0; ix_local<nx; ++ix_local) {
+    int ix= ix0 + ix_local;
+    ik[0]= ix < nc/2 ? ix : ix - nc;
+    for(int iy=0; iy<nc; ++iy) {
+      ik[1]= iy < nc/2 ? iy : iy - nc;
+      
+      int iz0 = ix == 0 && iy == 0; // skip kx=ky=kz=0
+      for(int iz=iz0; iz<nckz; ++iz) {
+	size_t index= (ix*static_cast<size_t>(nx) + iy)*nckz + iz;
+	ik[2]= iz;
+
+	double kfac= fac*(ik[axis]/(ik[0]*ik[0] + ik[1]*ik[1] + ik[2]*ik[2]));
+	v[index][0]= kfac*d[index][1];
+	v[index][1]= kfac*d[index][0]; // check negative sign
+      }
+    }
+  }
+
+
+}
+
+
 void lognormal_generate_particles_periodic(const size_t np,
 					   gsl_rng* rng,
 					   Grid const * const grid_n,
@@ -252,6 +301,13 @@ void lognormal_generate_particles_periodic(const size_t np,
   //   grid_vx: Grid of v_x(x) in 1/h Mpc (RSD displacement)
   //            This can be NULL (p.v[k] will be 0.0)
   //
+  assert(grid_n->mode == grid_mode_x);
+  if(grid_vx) {
+    assert(grid_vx->mode == grid_mode_x);
+    assert(grid_vy->mode == grid_mode_x);
+    assert(grid_vz->mode == grid_mode_x);
+  }
+    
   const size_t nc= grid_n->nc;
   const size_t nx= grid_n->local_nx;
   const size_t ncz= 2*(nc/2 + 1);
