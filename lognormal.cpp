@@ -96,7 +96,7 @@ void lognormal_compute_gaussian_power(Grid* const grid)
 {
   //
   // Convert P_input(k) -> P_gaussian(k)
-  //
+  // using xi_gaussian(r)= log(1.0 + xi_input(r))
   
   // P(k) => xi(r)
   grid->fft_inverse();
@@ -116,7 +116,7 @@ void lognormal_compute_gaussian_power(Grid* const grid)
     }
   }
 
-  // xi_gaussian(r) => P_gaussian(r)
+  // xi_gaussian(r) => P_gaussian(k)
   grid->fft_forward();
 }
 

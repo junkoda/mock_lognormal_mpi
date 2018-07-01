@@ -64,8 +64,9 @@ int main(int argc, char* argv[])
   }
 
   //
-  // TODO: convert to P_guassian(k)
+  // Convert to P_guassian(k)
   //
+  lognormal_compute_gaussian_power(grid);
 
   //
   // Convert P_gaussian(k) to random realisation delta_k(k)
