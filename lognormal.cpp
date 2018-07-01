@@ -87,26 +87,6 @@ Grid* lognormal_create_power_grid(InputPower const * const ps,
     }
   }
 
-  // DEBUG!!!
-  int ix0 = grid->local_x0;
-  for(size_t ix_local=0; ix_local<nx; ++ix_local) {
-    size_t ix= ix_local + ix0;
-    for(size_t iy=0; iy<nc; ++iy) {
-      for(size_t iz=0; iz<nc/2; ++iz) {
-	size_t index= (ix_local*nc + iy)*nckz + iz;
-	if(ix == 0 && iy == 0 && iz == 0)
-	  continue;
-	else if(ix == nc/2) continue;
-	else if(iy == nc/2) continue;
-
-	if(fk[index][0] == 0.0) {
-	  cerr << "debug PK " << comm_this_node() << " | " << ix << " " << iy << " " << iz << " : " << fk[index][0] << endl;
-	}
-      }
-    }
-  }
-
-  
   grid->mode= grid_mode_k;
   
   return grid;
@@ -163,26 +143,6 @@ void lognormal_create_gaussian_delta_k(const unsigned long seed,
   const double boxsize= grid->boxsize;
   const double vol= boxsize*boxsize*boxsize;
   fftw_complex* const fk= (fftw_complex*) grid->fx;
-
-  // DEBUG!!!
-  for(size_t ix_local=0; ix_local<nx; ++ix_local) {
-    size_t ix= ix_local + ix0;
-    for(size_t iy=0; iy<nc; ++iy) {
-      for(size_t iz=0; iz<nc/2; ++iz) {
-	size_t index= (ix_local*nc + iy)*nckz + iz;
-	if(ix == 0 && iy == 0 && iz == 0)
-	  continue;
-	else if(ix == nc/2) continue;
-	else if(iy == nc/2) continue;
-
-
-	if(fk[index][0] <= 0.0) {
-	  cerr << "delta_k_mag check " <<  ix << " " << iy << " " << iz << " : " << fk[index][0] << endl;
-	  abort();
-	}
-      }
-    }
-  }
 
   // P(k) = 1/V <delta(k) delta^*(k)
   gsl_rng* rng= gsl_rng_alloc(gsl_rng_ranlxd1);
