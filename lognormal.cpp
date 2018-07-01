@@ -96,7 +96,7 @@ Grid* lognormal_create_power_grid(InputPower const * const ps,
   return grid;
 }
 
-void lognormal_compute_gaussian_power(Grid* const grid)
+void lognormal_convert_to_gaussian_power(Grid* const grid)
 {
   //
   // Convert P_input(k) -> P_gaussian(k)
@@ -125,7 +125,7 @@ void lognormal_compute_gaussian_power(Grid* const grid)
 }
 
 
-void lognormal_create_gaussian_delta_k(const unsigned long seed,
+void lognormal_generate_gaussian_delta_k(const unsigned long seed,
 				       Grid* const grid)
 {
   // Convert the grid of P(k) to a random Gaussian realisation delta(k)
@@ -284,12 +284,34 @@ void lognormal_compute_velogicy_grid(Grid const * const grid,
       }
     }
   }
-
-
 }
 
+void lognormal_convert_to_lognormal_density(Grid* const grid)
+{
+  //
+  // Convert 1 + delta_gaussian(x) => 1 + delta_lognormal(x)
+  //
+  assert(grid->mode == grid_mode_x);
 
-void lognormal_generate_particles_periodic(const size_t np,
+  const size_t nc= grid->nc;
+  const size_t ncz= 2*(nc/2 + 1);
+
+  double* const fx= grid->fx;
+
+  for(size_t ix_local=0; ix_local<grid->local_nx; ++ix_local) {
+    for(size_t iy=0; iy<nc; ++iy) {
+      for(int iz=0; iz<ncz; ++iz) {
+	size_t index= (ix_local*nc + iy)*ncz + iz;
+		
+	fx[index]= exp(fx[index]);
+      }
+    }
+  }
+}
+  
+
+
+void lognormal_generate_particles_periodic(const double nbar,
 					   gsl_rng* rng,
 					   Grid const * const grid_n,
 					   Grid const * const grid_vx,
@@ -319,12 +341,14 @@ void lognormal_generate_particles_periodic(const size_t np,
   const double boxsize= grid_n->boxsize;
   v.boxsize= boxsize;
 
-  const double num_bar= static_cast<double>(np)/(nc*nc*nc);
   const double dx= boxsize/nc;
+  const double num_bar= nbar*dx*dx*dx;
 
   Particle p;
   p.v[0]= p.v[1]= p.v[2]= 0.0;
   //size_t np_added= 0;
+
+  cerr << "start loop.\n";
   
   for(size_t ix_local=0; ix_local<nx; ++ix_local) {
     size_t ix= grid_n->local_x0 + ix_local;
@@ -334,6 +358,7 @@ void lognormal_generate_particles_periodic(const size_t np,
 
 	// mean number of particles in the cell
 	double num_grid= n[index]*num_bar;
+	cerr << comm_this_node() << " " << num_grid << endl;
 	//num_total_mean += num_grid;
 	//np_added++;
 
@@ -358,6 +383,7 @@ void lognormal_generate_particles_periodic(const size_t np,
     }
   }
 
+  cerr << "done.\n";
   //msg_printf(msg_debug, "%llu particles generated\n", np_added);
 }
 

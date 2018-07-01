@@ -11,9 +11,10 @@ Grid* lognormal_create_power_grid(InputPower const * const ps,
 				  const int nc, const double boxsize,
 				  const double pk_fac);
 
-void lognormal_compute_gaussian_power(Grid* const grid);
+//void lognormal_compute_gaussian_power(Grid* const grid);
+void lognormal_convert_to_gaussian_power(Grid* const grid);
 
-void lognormal_create_gaussian_delta_k(const unsigned long seed,
+void lognormal_generate_gaussian_delta_k(const unsigned long seed,
 				       Grid* const grid);
 
 void lognormal_compute_velogicy_grid(Grid const * const grid,
@@ -22,7 +23,9 @@ void lognormal_compute_velogicy_grid(Grid const * const grid,
 				     const double omega_m,
 				     Grid* const grid_v);
 
-void lognormal_generate_particles_periodic(const size_t np,
+void lognormal_convert_to_lognormal_density(Grid* const grid);
+
+void lognormal_generate_particles_periodic(const double nbar,
 					   gsl_rng* rng,
 					   Grid const * const grid_n,
 					   Grid const * const grid_vx,

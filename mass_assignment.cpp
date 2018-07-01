@@ -1,6 +1,7 @@
 #include <cmath>
 
 #include "msg.h"
+#include "comm.h"
 #include "mass_assignment.h"
 
 
@@ -143,8 +144,11 @@ void assign_template(const Particles& v,
     
     f(rx, grid);
   }
-  
-  grid->np += v.size();
+
+  long long np= v.size();
+  np= comm_sum(np);
+
+  grid->np += np;
   grid->n_mas = f.n_mas;
 }
 
@@ -183,4 +187,10 @@ void mass_assignment(const Particles& v,
   // 2. Mass assignment for particles in other MPI nodes
   // TODO
 
+
+
+
+  grid->mode= grid_mode_x;
+  if(grid_shifted)
+    grid_shifted->mode= grid_mode_x;
 }

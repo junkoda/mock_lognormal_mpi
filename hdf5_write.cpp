@@ -6,10 +6,10 @@
 #include "grid.h"
 #include "hdf5_write.h"
 
-
 void hdf5_write_grid_real(const char filename[],
-			  Grid const * const grid)
+			     Grid const * const grid)
 {
+  assert(grid->mode == grid_mode_x);
   const int nc= grid->nc;
   const size_t ncz= 2*(nc/2 + 1);
   double const * const fx= grid->fx;
@@ -20,29 +20,110 @@ void hdf5_write_grid_real(const char filename[],
   hid_t plist= H5Pcreate(H5P_FILE_ACCESS);
   H5Pset_fapl_mpio(plist, MPI_COMM_WORLD, MPI_INFO_NULL);
 
+  hid_t file= H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, plist);
+  if(file < 0) {
+    msg_printf(msg_error, "Error: unable to create HDF5 file: %s\n",
+	       filename);
+    throw IOError();
+  }    
+  msg_printf(msg_debug, "Created a new HDF5 file: %s\n", filename);
+
+  /*
   hid_t file= H5Fopen(filename, H5F_ACC_RDWR, plist);
   if(file < 0) {
-    file= H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, plist);
-    if(file < 0) {
-      msg_printf(msg_error, "Error: unable to create HDF5 file: %s\n",
-		 filename);
-      throw IOError();
-    }
-    
-    msg_printf(msg_debug, "Created a new HDF5 file: %s\n", filename);
   }
   else {
     msg_printf(msg_debug, "Opened HDF5 file, %s\n", filename);
   }
+  */
+
 
   // Data structure in memory
   const hsize_t data_size_mem[]= {grid->local_nx, nc, ncz};
   hid_t memspace= H5Screate_simple(3, data_size_mem, 0);
 
   const hsize_t offset_mem[]= {0, 0, 0};
-  const hsize_t count_mem[]= {nc, nc, nc};
+  const hsize_t count_mem[]= {grid->local_nx, nc, nc};
   H5Sselect_hyperslab(memspace, H5S_SELECT_SET,
-		      offset_mem, NULL, count_mem, NULL);
+  offset_mem, NULL, count_mem, NULL);
+
+  // Data structure in file
+  const hsize_t dim= 3;
+  const hsize_t data_size_file[]= {nc, nc, nc};
+  hid_t filespace= H5Screate_simple(dim, data_size_file, NULL);
+
+  // local subset of data for this node
+  const hsize_t offset_file[]= {grid->local_x0, 0, 0, 0};
+  const hsize_t count_file[]= {grid->local_nx, nc, nc};
+
+
+  H5Sselect_hyperslab(filespace, H5S_SELECT_SET,
+		      offset_file, NULL, count_file, NULL);
+
+
+  hid_t dataset= H5Dcreate(file, "fx", H5T_IEEE_F64LE, filespace,
+			   H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  if(dataset < 0) {
+    throw IOError();
+  }
+
+
+  hid_t plist_data= H5Pcreate(H5P_DATASET_XFER);
+  H5Pset_dxpl_mpio(plist_data, H5FD_MPIO_COLLECTIVE);
+    
+  const herr_t status = H5Dwrite(dataset, H5T_NATIVE_DOUBLE, memspace, filespace,
+				 plist_data, fx);
+
+
+
+  H5Pclose(plist_data);
+  
+  H5Dclose(dataset);
+
+  H5Sclose(filespace);
+  H5Sclose(memspace);
+  
+  assert(status >= 0);
+
+  H5Pclose(plist);
+  H5Fclose(file);
+
+  msg_printf(msg_info, "%s written.\n", filename);
+}
+
+
+/*
+void hdf5_write_grid_real(const char filename[], Grid const * const grid)
+{
+  assert(grid->mode == grid_mode_x);
+  
+  const int nc= grid->nc;
+  const size_t ncz= 2*(nc/2 + 1);
+  double const * const fx= grid->fx;
+  
+  //H5Eset_auto2(H5E_DEFAULT, NULL, 0);
+
+  // Parallel file access
+  hid_t plist= H5Pcreate(H5P_FILE_ACCESS);
+  H5Pset_fapl_mpio(plist, MPI_COMM_WORLD, MPI_INFO_NULL);
+
+  hid_t file= H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, plist);
+  if(file < 0) {
+    msg_printf(msg_error, "Error: unable to create HDF5 file: %s\n",
+	       filename);
+    throw IOError();
+  }
+  
+  msg_printf(msg_debug, "Created a new HDF5 file: %s\n", filename);
+
+  // Data structure in memory
+  const hsize_t data_size_mem[]= {grid->local_nx, nc, ncz};
+  hid_t memspace= H5Screate_simple(3, data_size_mem, 0);
+
+  //const hsize_t offset_mem[]= {0, 0, 0};
+  //const hsize_t count_mem[]= {nc, nc, ncz};//DEBUG want to output nc nc nc
+  //H5Sselect_hyperslab(memspace, H5S_SELECT_SET,
+  //		      offset_mem, NULL, count_mem, NULL);
 
   // Data structure in file
   const hsize_t dim= 3;
@@ -51,7 +132,7 @@ void hdf5_write_grid_real(const char filename[],
 
   // local subset of data for this node
   const hsize_t offset_file[]= {grid->local_x0, 0, 0};
-  const hsize_t count_file[]= {nc, nc, nc};
+  const hsize_t count_file[]= {grid->local_nx, nc, ncz}; //DEBUG nc
 
   H5Sselect_hyperslab(filespace, H5S_SELECT_SET,
 		      offset_file, NULL, count_file, NULL);
@@ -65,22 +146,25 @@ void hdf5_write_grid_real(const char filename[],
   H5Pset_dxpl_mpio(plist_data, H5FD_MPIO_COLLECTIVE);
     
   const herr_t status = H5Dwrite(dataset, H5T_NATIVE_DOUBLE, memspace, filespace,
-				 plist, fx);
+  				 plist, fx);
+  assert(status >= 0);
 
   H5Pclose(plist_data);
   H5Sclose(memspace);
   H5Sclose(filespace);
   H5Dclose(dataset);
   
-  assert(status >= 0);
+
 
   H5Pclose(plist);
   H5Fclose(file);
 }
+*/
 
 void hdf5_write_grid_complex(const char filename[],
 			     Grid const * const grid)
 {
+  assert(grid->mode == grid_mode_k);
   const int nc= grid->nc;
   const size_t nckz= nc/2 + 1;
   double const * const fx= grid->fx;
@@ -132,7 +216,7 @@ void hdf5_write_grid_complex(const char filename[],
 		      offset_file, NULL, count_file, NULL);
 
 
-  hid_t dataset= H5Dcreate(file, "fx", H5T_IEEE_F64LE, filespace,
+  hid_t dataset= H5Dcreate(file, "fk", H5T_IEEE_F64LE, filespace,
 			   H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
   if(dataset < 0) {
     throw IOError();

@@ -4,6 +4,9 @@
 #include "grid.h"
 #include "config.h"
 
-void mass_assignment_assign(const Particles& v, Grid* const grid);
+void mass_assignment(const Particles& v,
+		     const int mas,
+		     Grid* const grid,
+		     Grid* const grid_shifted);
 
 #endif

@@ -3,7 +3,7 @@
 #include <cassert>
 
 Grid::Grid(const int nc_, const double boxsize_) :
-  nc(nc_), ncz(nc_/2 + 1), boxsize(boxsize_)
+  nc(nc_), ncz(nc_/2 + 1), boxsize(boxsize_), mode(grid_mode_unknown)
 {
   //size_t ncz= 2*(nc/2 + 1);
 
@@ -33,7 +33,8 @@ void Grid::fft_forward()
   fftw_mpi_execute_dft_r2c(plan_forward, fx, fk);
   mode = grid_mode_k;
 
-  // f^(k) = \int f(x) e^-ikx d3x = sum f(x) dx^3 
+  // f^(k) = \int f(x) e^-ikx d3x = sum f(x) dx^3,
+  // where dx = boxsize/nc
   
   const double fac= pow(boxsize/nc, 3.0);
   const size_t ngrid= static_cast<size_t>(local_nx)*nc*2*(nc/2 + 1);

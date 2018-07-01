@@ -32,7 +32,7 @@ CPPFLAGS  += $(foreach dir, $(DIR_PATH), -I$(dir)/include)
 LIBS      += $(foreach dir, $(DIR_PATH), -L$(dir)/lib)
 
 OBJS := main.o comm.o input_power.o msg.o grid.o lognormal.o
-OBJS += hdf5_write.o growth.o mass_assignment.o #power.o cosmology.o lpt.o
+OBJS += hdf5_write.o growth.o mass_assignment.o power_spectrum.o
 
 #
 # Linking libraries
