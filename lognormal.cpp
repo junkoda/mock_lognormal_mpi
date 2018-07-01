@@ -4,8 +4,10 @@
 #include <cassert>
 
 #include <gsl/gsl_rng.h>
+#include <gsl/gsl_randist.h>
 
 #include "comm.h" // DEBUG
+#include "msg.h"
 #include "lognormal.h"
 
 using namespace std;
@@ -236,6 +238,74 @@ void lognormal_create_gaussian_delta_k(const unsigned long seed,
   //fprintf(stderr, "negative P(k): %zu\n", negative);  
 }
 
+void lognormal_generate_particles_periodic(const size_t np,
+					   gsl_rng* rng,
+					   Grid const * const grid_n,
+					   Grid const * const grid_vx,
+					   Grid const * const grid_vy,
+					   Grid const * const grid_vz,
+					   Particles& v)
+{
+  //
+  // Add np particles (in average) to Particles
+  //   grid_n: Grid of n(x), number of particles per (1/h Mpc)^3
+  //   grid_vx: Grid of v_x(x) in 1/h Mpc (RSD displacement)
+  //            This can be NULL (p.v[k] will be 0.0)
+  //
+  const size_t nc= grid_n->nc;
+  const size_t nx= grid_n->local_nx;
+  const size_t ncz= 2*(nc/2 + 1);
+
+  double const * const n= grid_n->fx;
+  
+  const double boxsize= grid_n->boxsize;
+  v.boxsize= boxsize;
+
+  const double num_bar= static_cast<double>(np)/(nc*nc*nc);
+  const double dx= boxsize/nc;
+
+  Particle p;
+  p.v[0]= p.v[1]= p.v[2]= 0.0;
+  //size_t np_added= 0;
+  
+  for(size_t ix_local=0; ix_local<nx; ++ix_local) {
+    size_t ix= grid_n->local_x0 + ix_local;
+    for(size_t iy=0; iy<nc; ++iy) {
+      for(size_t iz=0; iz<nc; ++iz) {
+	size_t index= (ix_local*nx + iy)*ncz + iz;
+
+	// mean number of particles in the cell
+	double num_grid= n[index]*num_bar;
+	//num_total_mean += num_grid;
+	//np_added++;
+
+	// velocity
+	if(grid_vx) {
+	  p.v[0]= grid_vx->fx[index];
+	  p.v[1]= grid_vy->fx[index];
+	  p.v[2]= grid_vz->fx[index];	  
+	}
+
+	// poisson sampling of the number of particles in cell
+	int num= gsl_ran_poisson(rng, num_grid);
+
+	for(int i=0; i<num; ++i) {
+	  p.x[0]= (ix + gsl_rng_uniform(rng))*dx;
+	  p.x[1]= (iy + gsl_rng_uniform(rng))*dx;
+	  p.x[2]= (iz + gsl_rng_uniform(rng))*dx;
+
+	  v.push_back(p);
+	}
+      }
+    }
+  }
+
+  //msg_printf(msg_debug, "%llu particles generated\n", np_added);
+}
+
+//
+// Local functions
+//
 namespace {
   
 void create_seedtable(const unsigned long seed, const int nc,
@@ -283,6 +353,5 @@ void create_seedtable(const unsigned long seed, const int nc,
   
   gsl_rng_free(random_generator);
 }
-
 
 } // End of unnamed namespace
